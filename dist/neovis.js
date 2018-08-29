@@ -36140,15 +36140,18 @@ module.exports = function (css) {
 /* 12 */
 /***/ (function(module, exports, __webpack_require__) {
 
-/* WEBPACK VAR INJECTION */(function(global) {var apply = Function.prototype.apply;
+/* WEBPACK VAR INJECTION */(function(global) {var scope = (typeof global !== "undefined" && global) ||
+            (typeof self !== "undefined" && self) ||
+            window;
+var apply = Function.prototype.apply;
 
 // DOM APIs, for completeness
 
 exports.setTimeout = function() {
-  return new Timeout(apply.call(setTimeout, window, arguments), clearTimeout);
+  return new Timeout(apply.call(setTimeout, scope, arguments), clearTimeout);
 };
 exports.setInterval = function() {
-  return new Timeout(apply.call(setInterval, window, arguments), clearInterval);
+  return new Timeout(apply.call(setInterval, scope, arguments), clearInterval);
 };
 exports.clearTimeout =
 exports.clearInterval = function(timeout) {
@@ -36163,7 +36166,7 @@ function Timeout(id, clearFn) {
 }
 Timeout.prototype.unref = Timeout.prototype.ref = function() {};
 Timeout.prototype.close = function() {
-  this._clearFn.call(window, this._id);
+  this._clearFn.call(scope, this._id);
 };
 
 // Does not start the time, just sets up the members needed.
@@ -36191,7 +36194,7 @@ exports._unrefActive = exports.active = function(item) {
 
 // setimmediate attaches itself to the global object
 __webpack_require__(9);
-// On some exotic environments, it's not clear which object `setimmeidate` was
+// On some exotic environments, it's not clear which object `setimmediate` was
 // able to install onto.  Search each possibility in the same order as the
 // `setimmediate` library.
 exports.setImmediate = (typeof self !== "undefined" && self.setImmediate) ||
@@ -36333,7 +36336,16 @@ class NeoVis {
         this._data = {};
         this._network = null;
         this._container = document.getElementById(config.container_id);
+        this._finishedFetchingGraphCB = config.onGraphFetched;
 
+    }
+
+    getNetwork() {
+        return this._network;
+    }
+
+    setOnGraphFetchedCallback(cb) {
+        this._finishedFetchingGraphCB = cb;
     }
 
     _addNode(node) {
@@ -36576,41 +36588,41 @@ class NeoVis {
                 })
                 },
                 onCompleted: function () {
-                  session.close();
-                  let options = {
-                    nodes: {
-                        shape: 'dot',
-                        font: {
-                            size: 26,
-                            strokeWidth: 7
-                        },
-                        scaling: {
-                            label: {
-                                enabled: true
+                    session.close();
+                    let options = {
+                        nodes: {
+                            shape: 'dot',
+                            font: {
+                                size: 26,
+                                strokeWidth: 7
+                            },
+                            scaling: {
+                                label: {
+                                    enabled: true
+                                }
                             }
-                        }
-                    },
-                    edges: {
-                        arrows: {
-                            to: {enabled: self._config.arrows || false } // FIXME: handle default value
                         },
-                        length: 200
-                    },
-                    layout: {
-                        improvedLayout: false,
-                        hierarchical: {
-                            enabled: self._config.hierarchical || false,
-                            sortMethod: self._config.hierarchical_sort_method || "hubsize"
+                        edges: {
+                            arrows: {
+                                to: {enabled: self._config.arrows || false } // FIXME: handle default value
+                            },
+                            length: 200
+                        },
+                        layout: {
+                            improvedLayout: false,
+                            hierarchical: {
+                                enabled: self._config.hierarchical || false,
+                                sortMethod: self._config.hierarchical_sort_method || "hubsize"
 
-                        }
-                    },
-                    physics: { // TODO: adaptive physics settings based on size of graph rendered
-                        // enabled: true,
-                        // timestep: 0.5,
-                        // stabilization: {
-                        //     iterations: 10
-                        // }
-                        
+                            }
+                        },
+                        physics: { // TODO: adaptive physics settings based on size of graph rendered
+                            // enabled: true,
+                            // timestep: 0.5,
+                            // stabilization: {
+                            //     iterations: 10
+                            // }
+
                             adaptiveTimestep: true,
                             // barnesHut: {
                             //     gravitationalConstant: -8000,
@@ -36621,16 +36633,16 @@ class NeoVis {
                                 iterations: 200,
                                 fit: true
                             }
-                        
-                    }
-                  };
+
+                        }
+                    };
 
                 var container = self._container;
                 self._data = {
                     "nodes": new __WEBPACK_IMPORTED_MODULE_1__vendor_vis_dist_vis_network_min_js__["DataSet"](Object.values(self._nodes)),
                     "edges": new __WEBPACK_IMPORTED_MODULE_1__vendor_vis_dist_vis_network_min_js__["DataSet"](Object.values(self._edges))
 
-                }
+                };
 
                 console.log(self._data.nodes);
                 console.log(self._data.edges);
@@ -36654,6 +36666,9 @@ class NeoVis {
                 console.log("completed");
                 setTimeout(() => { self._network.stopSimulation(); }, 10000);
 
+                if(typeof self._finishedFetchingGraphCB === "function"){
+                    self._finishedFetchingGraphCB(self._network);
+                }
                 },
                 onError: function (error) {
                   console.log(error);

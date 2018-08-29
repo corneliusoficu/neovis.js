@@ -37,7 +37,16 @@ export default class NeoVis {
         this._data = {};
         this._network = null;
         this._container = document.getElementById(config.container_id);
+        this._finishedFetchingGraphCB = config.onGraphFetched;
 
+    }
+
+    getNetwork() {
+        return this._network;
+    }
+
+    setOnGraphFetchedCallback(cb) {
+        this._finishedFetchingGraphCB = cb;
     }
 
     _addNode(node) {
@@ -280,41 +289,41 @@ export default class NeoVis {
                 })
                 },
                 onCompleted: function () {
-                  session.close();
-                  let options = {
-                    nodes: {
-                        shape: 'dot',
-                        font: {
-                            size: 26,
-                            strokeWidth: 7
-                        },
-                        scaling: {
-                            label: {
-                                enabled: true
+                    session.close();
+                    let options = {
+                        nodes: {
+                            shape: 'dot',
+                            font: {
+                                size: 26,
+                                strokeWidth: 7
+                            },
+                            scaling: {
+                                label: {
+                                    enabled: true
+                                }
                             }
-                        }
-                    },
-                    edges: {
-                        arrows: {
-                            to: {enabled: self._config.arrows || false } // FIXME: handle default value
                         },
-                        length: 200
-                    },
-                    layout: {
-                        improvedLayout: false,
-                        hierarchical: {
-                            enabled: self._config.hierarchical || false,
-                            sortMethod: self._config.hierarchical_sort_method || "hubsize"
+                        edges: {
+                            arrows: {
+                                to: {enabled: self._config.arrows || false } // FIXME: handle default value
+                            },
+                            length: 200
+                        },
+                        layout: {
+                            improvedLayout: false,
+                            hierarchical: {
+                                enabled: self._config.hierarchical || false,
+                                sortMethod: self._config.hierarchical_sort_method || "hubsize"
 
-                        }
-                    },
-                    physics: { // TODO: adaptive physics settings based on size of graph rendered
-                        // enabled: true,
-                        // timestep: 0.5,
-                        // stabilization: {
-                        //     iterations: 10
-                        // }
-                        
+                            }
+                        },
+                        physics: { // TODO: adaptive physics settings based on size of graph rendered
+                            // enabled: true,
+                            // timestep: 0.5,
+                            // stabilization: {
+                            //     iterations: 10
+                            // }
+
                             adaptiveTimestep: true,
                             // barnesHut: {
                             //     gravitationalConstant: -8000,
@@ -325,16 +334,16 @@ export default class NeoVis {
                                 iterations: 200,
                                 fit: true
                             }
-                        
-                    }
-                  };
+
+                        }
+                    };
 
                 var container = self._container;
                 self._data = {
                     "nodes": new vis.DataSet(Object.values(self._nodes)),
                     "edges": new vis.DataSet(Object.values(self._edges))
 
-                }
+                };
 
                 console.log(self._data.nodes);
                 console.log(self._data.edges);
@@ -358,6 +367,9 @@ export default class NeoVis {
                 console.log("completed");
                 setTimeout(() => { self._network.stopSimulation(); }, 10000);
 
+                if(typeof self._finishedFetchingGraphCB === "function"){
+                    self._finishedFetchingGraphCB(self._network);
+                }
                 },
                 onError: function (error) {
                   console.log(error);
