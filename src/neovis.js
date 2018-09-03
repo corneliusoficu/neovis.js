@@ -122,7 +122,7 @@ export default class NeoVis {
         }
 
         // node caption
-        node['label'] = n.properties[captionKey] || label || "";
+        node['label'] = n.properties[captionKey] || "";
 
         // community
         // behavior: color by value of community property (if set in config), then color by label
@@ -190,6 +190,7 @@ export default class NeoVis {
         if (typeof captionKey === "boolean") {
             if (!captionKey) {
                 edge['label'] = "";
+                edge['title'] += "<strong>" + "name" + ":</strong>" + " " + r.type + "<br>";
             } else {
                 edge['label'] = r.type;
             }
@@ -307,6 +308,10 @@ export default class NeoVis {
                             arrows: {
                                 to: {enabled: self._config.arrows || false } // FIXME: handle default value
                             },
+                            smooth: {
+                                enabled: false,
+                                type: 'diagonalCross'
+                            },
                             length: 200
                         },
                         layout: {
@@ -330,9 +335,18 @@ export default class NeoVis {
                             //     springConstant: 0.04,
                             //     springLength: 95
                             // },
+                            barnesHut: {
+                                gravitationalConstant: -8000,
+                                springConstant: 0.04,
+                                springLength: 95
+                            },
                             stabilization: {
-                                iterations: 200,
+                                iterations: 970,
                                 fit: true
+                            },
+                            layout: {
+                                randomSeed: 191006,
+                                // improvedLayout: true
                             }
 
                         }
