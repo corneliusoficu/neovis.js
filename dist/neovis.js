@@ -36340,6 +36340,10 @@ class NeoVis {
 
     }
 
+    getNeo4JDriver() {
+        return this._driver;
+    }
+
     getNetwork() {
         return this._network;
     }

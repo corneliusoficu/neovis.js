@@ -41,6 +41,10 @@ export default class NeoVis {
 
     }
 
+    getNeo4JDriver() {
+        return this._driver;
+    }
+
     getNetwork() {
         return this._network;
     }
@@ -141,8 +145,6 @@ export default class NeoVis {
             } catch(e) {
                 node['group'] = 0;
             }
-
-            
         }
 
 
