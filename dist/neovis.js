@@ -36329,8 +36329,11 @@ class NeoVis {
         this._config = config;
         this._encrypted = config.encrypted || __WEBPACK_IMPORTED_MODULE_3__defaults__["a" /* defaults */]['neo4j']['encrypted'];
         this._trust = config.trust || __WEBPACK_IMPORTED_MODULE_3__defaults__["a" /* defaults */].neo4j.trust;
-        this._driver = __WEBPACK_IMPORTED_MODULE_0__vendor_neo4j_javascript_driver_lib_browser_neo4j_web_js__["v1"].driver(config.server_url || __WEBPACK_IMPORTED_MODULE_3__defaults__["a" /* defaults */].neo4j.neo4jUri, __WEBPACK_IMPORTED_MODULE_0__vendor_neo4j_javascript_driver_lib_browser_neo4j_web_js__["v1"].auth.basic(config.server_user || __WEBPACK_IMPORTED_MODULE_3__defaults__["a" /* defaults */].neo4j.neo4jUser, config.server_password || __WEBPACK_IMPORTED_MODULE_3__defaults__["a" /* defaults */].neo4j.neo4jPassword), {encrypted: this._encrypted, trust: this._trust});
-        this._query =   config.initial_cypher || __WEBPACK_IMPORTED_MODULE_3__defaults__["a" /* defaults */].neo4j.initialQuery;
+        this._driver = __WEBPACK_IMPORTED_MODULE_0__vendor_neo4j_javascript_driver_lib_browser_neo4j_web_js__["v1"].driver(config.server_url || __WEBPACK_IMPORTED_MODULE_3__defaults__["a" /* defaults */].neo4j.neo4jUri, __WEBPACK_IMPORTED_MODULE_0__vendor_neo4j_javascript_driver_lib_browser_neo4j_web_js__["v1"].auth.basic(config.server_user || __WEBPACK_IMPORTED_MODULE_3__defaults__["a" /* defaults */].neo4j.neo4jUser, config.server_password || __WEBPACK_IMPORTED_MODULE_3__defaults__["a" /* defaults */].neo4j.neo4jPassword), {
+            encrypted: this._encrypted,
+            trust: this._trust
+        });
+        this._query = config.initial_cypher || __WEBPACK_IMPORTED_MODULE_3__defaults__["a" /* defaults */].neo4j.initialQuery;
         this._nodes = {};
         this._edges = {};
         this._data = {};
@@ -36346,6 +36349,10 @@ class NeoVis {
 
     getNetwork() {
         return this._network;
+    }
+
+    getDataSet() {
+        return this._data;
     }
 
     setOnGraphFetchedCallback(cb) {
@@ -36367,19 +36374,19 @@ class NeoVis {
      * @param n
      * @returns {{}}
      */
-     buildNodeVisObject(n) {
+    buildNodeVisObject(n) {
 
         var self = this;
         let node = {};
         let label = n.labels[0];
 
-        let captionKey   = this._config && this._config.labels && this._config.labels[label] && this._config.labels[label]['caption'],
+        let captionKey = this._config && this._config.labels && this._config.labels[label] && this._config.labels[label]['caption'],
             sizeKey = this._config && this._config.labels && this._config.labels[label] && this._config.labels[label]['size'],
             sizeCypher = this._config && this._config.labels && this._config.labels[label] && this._config.labels[label]['sizeCypher'],
             communityKey = this._config && this._config.labels && this._config.labels[label] && this._config.labels[label]['community'];
 
         node['id'] = n.identity.toInt();
-        
+
         // node size
 
         if (sizeCypher) {
@@ -36389,9 +36396,9 @@ class NeoVis {
 
             let session = this._driver.session();
             session.run(sizeCypher, {id: __WEBPACK_IMPORTED_MODULE_0__vendor_neo4j_javascript_driver_lib_browser_neo4j_web_js__["v1"].int(node['id'])})
-                .then(function(result) {
-                    result.records.forEach(function(record) {
-                        record.forEach(function(v,k,r) {
+                .then(function (result) {
+                    result.records.forEach(function (record) {
+                        record.forEach(function (v, k, r) {
                             if (typeof v === "number") {
                                 self._addNode({id: node['id'], value: v});
                             } else if (v.constructor.name === "Integer") {
@@ -36441,11 +36448,9 @@ class NeoVis {
                     node['group'] = 0;
                 }
 
-            } catch(e) {
+            } catch (e) {
                 node['group'] = 0;
             }
-
-            
         }
 
 
@@ -36455,6 +36460,63 @@ class NeoVis {
             node['title'] += "<strong>" + key + ":</strong>" + " " + n.properties[key] + "<br>";
         }
         return node;
+    }
+
+    computeEdgeRoundness() {
+
+        var edgeDirection = {};
+
+        for (let edgeId in this._edges) {
+            var edge = this._edges[edgeId];
+            if (edgeDirection[edge.from] === undefined && edgeDirection[edge.to] === undefined) {
+                edgeDirection[edge.from] = {};
+                edgeDirection[edge.from][edge.to] = [];
+                edgeDirection[edge.from][edge.to].push(edge.id);
+            } else if(edgeDirection[edge.from] !== undefined) {
+                if(edgeDirection[edge.from][edge.to] !== undefined) {
+                    edgeDirection[edge.from][edge.to].push(edge.id);
+                } else {
+                    edgeDirection[edge.from][edge.to] = [edge.id];
+                }
+            } else if(edgeDirection[edge.to] !== undefined){
+                if(edgeDirection[edge.to][edge.from] !== undefined) {
+                    edgeDirection[edge.to][edge.from].push(edge.id);
+                } else {
+                    edgeDirection[edge.to][edge.from] = [edge.id];
+                }
+            }
+
+        }
+
+        for (let edgeId in this._edges) {
+            var edge = this._edges[edgeId];
+
+            var edgesCount = 1;
+
+            if(edgeDirection[edge.from] !== undefined && edgeDirection[edge.from][edge.to] !== undefined) {
+                edgesCount = edgeDirection[edge.from][edge.to].length;
+            } else if(edgeDirection[edge.to] !== undefined && edgeDirection[edge.to][edge.from] !== undefined) {
+                edgesCount = edgeDirection[edge.to][edge.from].length;
+            }
+
+            let smoothOption;
+
+            if(edgesCount === 1) {
+                smoothOption = {
+                    enabled: false,
+                        type: 'diagonalCross'
+                };
+            } else {
+                smoothOption = {
+                    type: 'curvedCW',
+                    roundness: 1 / edgesCount
+                };
+            }
+
+            this._edges[edgeId].smooth = smoothOption;
+        }
+
+        console.log(edgeDirection);
     }
 
     /**
@@ -36498,7 +36560,7 @@ class NeoVis {
                 edge['label'] = r.type;
             }
         } else if (captionKey && typeof captionKey === "string") {
-            edge['label']  = r.properties[captionKey] || "";
+            edge['label'] = r.properties[captionKey] || "";
         } else {
             edge['label'] = r.type;
         }
@@ -36524,76 +36586,79 @@ class NeoVis {
                     console.log(record.constructor.name);
                     console.log(record);
 
-                    record.forEach(function(v, k, r) {
-                    console.log("Constructor:");
-                    console.log(v.constructor.name);
-                    if (v.constructor.name === "Node") {
-                        let node = self.buildNodeVisObject(v);
+                    record.forEach(function (v, k, r) {
+                        console.log("Constructor:");
+                        console.log(v.constructor.name);
+                        if (v.constructor.name === "Node") {
+                            let node = self.buildNodeVisObject(v);
 
-                        try {
-                            self._addNode(node);
-                        } catch(e) {
-                            console.log(e);
+                            try {
+                                self._addNode(node);
+                            } catch (e) {
+                                console.log(e);
+                            }
+
+                        }
+                        else if (v.constructor.name === "Relationship") {
+
+                            let edge = self.buildEdgeVisObject(v);
+
+                            try {
+                                self._addEdge(edge);
+                            } catch (e) {
+                                console.log(e);
+                            }
+
+                        }
+                        else if (v.constructor.name === "Path") {
+                            console.log("PATH");
+                            console.log(v);
+                            let n1 = self.buildNodeVisObject(v.start);
+                            let n2 = self.buildNodeVisObject(v.end);
+
+                            self._addNode(n1);
+                            self._addNode(n2);
+
+                            v.segments.forEach((obj) => {
+
+                                self._addNode(self.buildNodeVisObject(obj.start));
+                                self._addNode(self.buildNodeVisObject(obj.end))
+                                self._addEdge(self.buildEdgeVisObject(obj.relationship))
+                            });
+
+                        }
+                        else if (v.constructor.name === "Array") {
+                            v.forEach(function (obj) {
+                                console.log("Array element constructor:");
+                                console.log(obj.constructor.name);
+                                if (obj.constructor.name === "Node") {
+                                    let node = self.buildNodeVisObject(obj);
+
+                                    try {
+                                        self._addNode(node);
+                                    } catch (e) {
+                                        console.log(e);
+                                    }
+                                }
+                                else if (obj.constructor.name === "Relationship") {
+                                    let edge = self.buildEdgeVisObject(obj);
+
+                                    try {
+                                        self._addEdge(edge);
+                                    } catch (e) {
+                                        console.log(e);
+                                    }
+                                }
+                            });
                         }
 
-                    }
-                    else if (v.constructor.name === "Relationship") {
-
-                        let edge = self.buildEdgeVisObject(v);
-
-                        try {
-                            self._addEdge(edge);
-                        } catch(e) {
-                            console.log(e);
-                        }
-
-                    }
-                    else if (v.constructor.name === "Path") {
-                        console.log("PATH");
-                        console.log(v);
-                        let n1 = self.buildNodeVisObject(v.start);
-                        let n2 = self.buildNodeVisObject(v.end);
-                        
-                        self._addNode(n1);
-                        self._addNode(n2);
-
-                        v.segments.forEach((obj) => {
-                            
-                            self._addNode(self.buildNodeVisObject(obj.start));
-                            self._addNode(self.buildNodeVisObject(obj.end))
-                            self._addEdge(self.buildEdgeVisObject(obj.relationship))
-                        });
-
-                    }
-                    else if (v.constructor.name === "Array") {
-                        v.forEach(function(obj) {
-                            console.log("Array element constructor:");
-                            console.log(obj.constructor.name);
-                            if (obj.constructor.name === "Node") {
-                                let node = self.buildNodeVisObject(obj);
-
-                                try {
-                                    self._addNode(node);
-                                } catch(e) {
-                                    console.log(e);
-                                }
-                            }
-                            else if (obj.constructor.name === "Relationship") {
-                                let edge = self.buildEdgeVisObject(obj);
-
-                                try {
-                                    self._addEdge(edge);
-                                } catch(e) {
-                                    console.log(e);
-                                }
-                            }
-                        });
-                    }
-
-                })
+                    })
                 },
                 onCompleted: function () {
                     session.close();
+
+                    self.computeEdgeRoundness();
+
                     let options = {
                         nodes: {
                             shape: 'dot',
@@ -36609,11 +36674,7 @@ class NeoVis {
                         },
                         edges: {
                             arrows: {
-                                to: {enabled: self._config.arrows || false } // FIXME: handle default value
-                            },
-                            smooth: {
-                                enabled: false,
-                                type: 'diagonalCross'
+                                to: {enabled: self._config.arrows || false} // FIXME: handle default value
                             },
                             length: 200
                         },
@@ -36646,54 +36707,51 @@ class NeoVis {
                             stabilization: {
                                 iterations: 970,
                                 fit: true
-                            },
-                            layout: {
-                                randomSeed: 191006,
-                                // improvedLayout: true
                             }
-
                         }
                     };
 
-                var container = self._container;
-                self._data = {
-                    "nodes": new __WEBPACK_IMPORTED_MODULE_1__vendor_vis_dist_vis_network_min_js__["DataSet"](Object.values(self._nodes)),
-                    "edges": new __WEBPACK_IMPORTED_MODULE_1__vendor_vis_dist_vis_network_min_js__["DataSet"](Object.values(self._edges))
+                    var container = self._container;
+                    self._data = {
+                        "nodes": new __WEBPACK_IMPORTED_MODULE_1__vendor_vis_dist_vis_network_min_js__["DataSet"](Object.values(self._nodes)),
+                        "edges": new __WEBPACK_IMPORTED_MODULE_1__vendor_vis_dist_vis_network_min_js__["DataSet"](Object.values(self._edges))
 
-                };
+                    };
 
-                console.log(self._data.nodes);
-                console.log(self._data.edges);
-                
-                // Create duplicate node for any self reference relationships
-                // NOTE: Is this only useful for data model type data
-                // self._data.edges = self._data.edges.map( 
-                //     function (item) {
-                //          if (item.from == item.to) {
-                //             var newNode = self._data.nodes.get(item.from)
-                //             delete newNode.id;
-                //             var newNodeIds = self._data.nodes.add(newNode);
-                //             console.log("Adding new node and changing self-ref to node: " + item.to);
-                //             item.to = newNodeIds[0];
-                //          }
-                //          return item;
-                //     }
-                // );
-                
-                self._network = new __WEBPACK_IMPORTED_MODULE_1__vendor_vis_dist_vis_network_min_js__["Network"](container, self._data, options);
-                console.log("completed");
-                setTimeout(() => { self._network.stopSimulation(); }, 10000);
+                    console.log(self._data.nodes);
+                    console.log(self._data.edges);
 
-                if(typeof self._finishedFetchingGraphCB === "function"){
-                    self._finishedFetchingGraphCB(self._network);
-                }
+                    // Create duplicate node for any self reference relationships
+                    // NOTE: Is this only useful for data model type data
+                    // self._data.edges = self._data.edges.map(
+                    //     function (item) {
+                    //          if (item.from == item.to) {
+                    //             var newNode = self._data.nodes.get(item.from)
+                    //             delete newNode.id;
+                    //             var newNodeIds = self._data.nodes.add(newNode);
+                    //             console.log("Adding new node and changing self-ref to node: " + item.to);
+                    //             item.to = newNodeIds[0];
+                    //          }
+                    //          return item;
+                    //     }
+                    // );
+
+                    self._network = new __WEBPACK_IMPORTED_MODULE_1__vendor_vis_dist_vis_network_min_js__["Network"](container, self._data, options);
+                    console.log("completed");
+                    setTimeout(() => {
+                        self._network.stopSimulation();
+                    }, 10000);
+
+                    if (typeof self._finishedFetchingGraphCB === "function") {
+                        self._finishedFetchingGraphCB(self._network);
+                    }
                 },
                 onError: function (error) {
-                  console.log(error);
+                    console.log(error);
                 }
 
             })
-        };
+    };
 
     /**
      * Clear the data for the visualization
