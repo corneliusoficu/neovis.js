@@ -36323,8 +36323,6 @@ class NeoVis {
      */
 
     constructor(config) {
-        console.log(config);
-        console.log(__WEBPACK_IMPORTED_MODULE_3__defaults__["a" /* defaults */]);
 
         this._config = config;
         this._encrypted = config.encrypted || __WEBPACK_IMPORTED_MODULE_3__defaults__["a" /* defaults */]['neo4j']['encrypted'];
@@ -36340,6 +36338,7 @@ class NeoVis {
         this._network = null;
         this._container = document.getElementById(config.container_id);
         this._finishedFetchingGraphCB = config.onGraphFetched;
+        this._nodesNeighbours = {};
 
     }
 
@@ -36464,59 +36463,87 @@ class NeoVis {
 
     computeEdgeRoundness() {
 
-        var edgeDirection = {};
+        console.log(this._nodesNeighbours);
 
         for (let edgeId in this._edges) {
-            var edge = this._edges[edgeId];
-            if (edgeDirection[edge.from] === undefined && edgeDirection[edge.to] === undefined) {
-                edgeDirection[edge.from] = {};
-                edgeDirection[edge.from][edge.to] = [];
-                edgeDirection[edge.from][edge.to].push(edge.id);
-            } else if(edgeDirection[edge.from] !== undefined) {
-                if(edgeDirection[edge.from][edge.to] !== undefined) {
-                    edgeDirection[edge.from][edge.to].push(edge.id);
-                } else {
-                    edgeDirection[edge.from][edge.to] = [edge.id];
-                }
-            } else if(edgeDirection[edge.to] !== undefined){
-                if(edgeDirection[edge.to][edge.from] !== undefined) {
-                    edgeDirection[edge.to][edge.from].push(edge.id);
-                } else {
-                    edgeDirection[edge.to][edge.from] = [edge.id];
-                }
-            }
+            let edge = this._edges[edgeId];
 
-        }
+            let edgeNodeIdFrom = edge.from;
+            let edgeNodeIdTo = edge.to;
 
-        for (let edgeId in this._edges) {
-            var edge = this._edges[edgeId];
+            let smoothOption = {
+                enabled: false,
+                type: 'diagonalCross'
+            };
 
-            var edgesCount = 1;
+            if((this._nodesNeighbours[edge.from]["IN"] &&
+                this._nodesNeighbours[edge.from]["IN"].includes(edge.to)) ||
+                (this._nodesNeighbours[edge.to]["OUT"] &&
+                    this._nodesNeighbours[edge.to]["OUT"].includes(edge.from)
 
-            if(edgeDirection[edge.from] !== undefined && edgeDirection[edge.from][edge.to] !== undefined) {
-                edgesCount = edgeDirection[edge.from][edge.to].length;
-            } else if(edgeDirection[edge.to] !== undefined && edgeDirection[edge.to][edge.from] !== undefined) {
-                edgesCount = edgeDirection[edge.to][edge.from].length;
-            }
-
-            let smoothOption;
-
-            if(edgesCount === 1) {
-                smoothOption = {
-                    enabled: false,
-                        type: 'diagonalCross'
-                };
-            } else {
+                )
+            ) {
+                console.log("Found", edge);
                 smoothOption = {
                     type: 'curvedCW',
-                    roundness: 1 / edgesCount
-                };
+                    roundness: 0.1
+                }
             }
 
             this._edges[edgeId].smooth = smoothOption;
         }
 
-        console.log(edgeDirection);
+        // var edgeDirection = {};
+        //
+        // for (let edgeId in this._edges) {
+        //     var edge = this._edges[edgeId];
+        //     if (edgeDirection[edge.from] === undefined && edgeDirection[edge.to] === undefined) {
+        //         edgeDirection[edge.from] = {};
+        //         edgeDirection[edge.from][edge.to] = [];
+        //         edgeDirection[edge.from][edge.to].push(edge.id);
+        //     } else if(edgeDirection[edge.from] !== undefined) {
+        //         if(edgeDirection[edge.from][edge.to] !== undefined) {
+        //             edgeDirection[edge.from][edge.to].push(edge.id);
+        //         } else {
+        //             edgeDirection[edge.from][edge.to] = [edge.id];
+        //         }
+        //     } else if(edgeDirection[edge.to] !== undefined){
+        //         if(edgeDirection[edge.to][edge.from] !== undefined) {
+        //             edgeDirection[edge.to][edge.from].push(edge.id);
+        //         } else {
+        //             edgeDirection[edge.to][edge.from] = [edge.id];
+        //         }
+        //     }
+        // }
+        //
+        // console.log(edgeDirection);
+        //
+        // for (let edgeId in this._edges) {
+        //     var edge = this._edges[edgeId];
+        //
+        //     var edgesCount = 1;
+        //
+        //     if(edgeDirection[edge.from] !== undefined && edgeDirection[edge.from][edge.to] !== undefined) {
+        //         edgesCount = edgeDirection[edge.from][edge.to].length;
+        //     } else if(edgeDirection[edge.to] !== undefined && edgeDirection[edge.to][edge.from] !== undefined) {
+        //         edgesCount = edgeDirection[edge.to][edge.from].length;
+        //     } else {
+        //         console.log(edge);
+        //     }
+        //
+        // }
+    }
+
+    addNeighbouringNode(source, neighbour, direction = 'IN') {
+        if (this._nodesNeighbours[source] === undefined) {
+            this._nodesNeighbours[source] = {};
+        }
+
+        if (this._nodesNeighbours[source][direction] === undefined) {
+            this._nodesNeighbours[source][direction] = []
+        }
+
+        this._nodesNeighbours[source][direction].push(neighbour);
     }
 
     /**
@@ -36533,6 +36560,9 @@ class NeoVis {
         edge['id'] = r.identity.toInt();
         edge['from'] = r.start.toInt();
         edge['to'] = r.end.toInt();
+
+        this.addNeighbouringNode(edge['from'], edge['to'], 'OUT');
+        this.addNeighbouringNode(edge['to'], edge['from'], 'IN');
 
         // hover tooltip. show all properties in the format <strong>key:</strong> value
         edge['title'] = "";
@@ -36582,13 +36612,8 @@ class NeoVis {
             .run(this._query, {limit: 30})
             .subscribe({
                 onNext: function (record) {
-                    console.log("CLASS NAME");
-                    console.log(record.constructor.name);
-                    console.log(record);
-
                     record.forEach(function (v, k, r) {
-                        console.log("Constructor:");
-                        console.log(v.constructor.name);
+
                         if (v.constructor.name === "Node") {
                             let node = self.buildNodeVisObject(v);
 
@@ -36611,8 +36636,6 @@ class NeoVis {
 
                         }
                         else if (v.constructor.name === "Path") {
-                            console.log("PATH");
-                            console.log(v);
                             let n1 = self.buildNodeVisObject(v.start);
                             let n2 = self.buildNodeVisObject(v.end);
 
@@ -36629,8 +36652,6 @@ class NeoVis {
                         }
                         else if (v.constructor.name === "Array") {
                             v.forEach(function (obj) {
-                                console.log("Array element constructor:");
-                                console.log(obj.constructor.name);
                                 if (obj.constructor.name === "Node") {
                                     let node = self.buildNodeVisObject(obj);
 
@@ -36656,6 +36677,7 @@ class NeoVis {
                 },
                 onCompleted: function () {
                     session.close();
+                    console.log("Retrieved data from neo4j");
 
                     self.computeEdgeRoundness();
 
@@ -36718,9 +36740,6 @@ class NeoVis {
 
                     };
 
-                    console.log(self._data.nodes);
-                    console.log(self._data.edges);
-
                     // Create duplicate node for any self reference relationships
                     // NOTE: Is this only useful for data model type data
                     // self._data.edges = self._data.edges.map(
@@ -36737,7 +36756,7 @@ class NeoVis {
                     // );
 
                     self._network = new __WEBPACK_IMPORTED_MODULE_1__vendor_vis_dist_vis_network_min_js__["Network"](container, self._data, options);
-                    console.log("completed");
+
                     setTimeout(() => {
                         self._network.stopSimulation();
                     }, 10000);
@@ -36757,7 +36776,7 @@ class NeoVis {
      * Clear the data for the visualization
      */
     clearNetwork() {
-        this._nodes = {}
+        this._nodes = {};
         this._edges = {};
         this._network.setData([]);
     }
@@ -36787,7 +36806,6 @@ class NeoVis {
      */
     stabilize() {
         this._network.stopSimulation();
-        console.log("Calling stopSimulation");
     }
 
     /**
