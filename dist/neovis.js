@@ -36382,7 +36382,8 @@ class NeoVis {
         let captionKey = this._config && this._config.labels && this._config.labels[label] && this._config.labels[label]['caption'],
             sizeKey = this._config && this._config.labels && this._config.labels[label] && this._config.labels[label]['size'],
             sizeCypher = this._config && this._config.labels && this._config.labels[label] && this._config.labels[label]['sizeCypher'],
-            communityKey = this._config && this._config.labels && this._config.labels[label] && this._config.labels[label]['community'];
+            communityKey = this._config && this._config.labels && this._config.labels[label] && this._config.labels[label]['community'],
+            shapeType = this._config && this._config.labels && this._config.labels[label] && this._config.labels[label]['shape'];
 
         node['id'] = n.identity.toInt();
 
@@ -36452,6 +36453,8 @@ class NeoVis {
             }
         }
 
+        node['shape'] = shapeType || "dot";
+
 
         // set all properties as tooltip
         node['title'] = "";
@@ -36462,8 +36465,6 @@ class NeoVis {
     }
 
     computeEdgeRoundness() {
-
-        console.log(this._nodesNeighbours);
 
         for (let edgeId in this._edges) {
             let edge = this._edges[edgeId];
@@ -36483,7 +36484,6 @@ class NeoVis {
 
                 )
             ) {
-                console.log("Found", edge);
                 smoothOption = {
                     type: 'curvedCW',
                     roundness: 0.1
@@ -36492,46 +36492,6 @@ class NeoVis {
 
             this._edges[edgeId].smooth = smoothOption;
         }
-
-        // var edgeDirection = {};
-        //
-        // for (let edgeId in this._edges) {
-        //     var edge = this._edges[edgeId];
-        //     if (edgeDirection[edge.from] === undefined && edgeDirection[edge.to] === undefined) {
-        //         edgeDirection[edge.from] = {};
-        //         edgeDirection[edge.from][edge.to] = [];
-        //         edgeDirection[edge.from][edge.to].push(edge.id);
-        //     } else if(edgeDirection[edge.from] !== undefined) {
-        //         if(edgeDirection[edge.from][edge.to] !== undefined) {
-        //             edgeDirection[edge.from][edge.to].push(edge.id);
-        //         } else {
-        //             edgeDirection[edge.from][edge.to] = [edge.id];
-        //         }
-        //     } else if(edgeDirection[edge.to] !== undefined){
-        //         if(edgeDirection[edge.to][edge.from] !== undefined) {
-        //             edgeDirection[edge.to][edge.from].push(edge.id);
-        //         } else {
-        //             edgeDirection[edge.to][edge.from] = [edge.id];
-        //         }
-        //     }
-        // }
-        //
-        // console.log(edgeDirection);
-        //
-        // for (let edgeId in this._edges) {
-        //     var edge = this._edges[edgeId];
-        //
-        //     var edgesCount = 1;
-        //
-        //     if(edgeDirection[edge.from] !== undefined && edgeDirection[edge.from][edge.to] !== undefined) {
-        //         edgesCount = edgeDirection[edge.from][edge.to].length;
-        //     } else if(edgeDirection[edge.to] !== undefined && edgeDirection[edge.to][edge.from] !== undefined) {
-        //         edgesCount = edgeDirection[edge.to][edge.from].length;
-        //     } else {
-        //         console.log(edge);
-        //     }
-        //
-        // }
     }
 
     addNeighbouringNode(source, neighbour, direction = 'IN') {
@@ -36613,7 +36573,6 @@ class NeoVis {
             .subscribe({
                 onNext: function (record) {
                     record.forEach(function (v, k, r) {
-
                         if (v.constructor.name === "Node") {
                             let node = self.buildNodeVisObject(v);
 
@@ -36677,13 +36636,11 @@ class NeoVis {
                 },
                 onCompleted: function () {
                     session.close();
-                    console.log("Retrieved data from neo4j");
 
                     self.computeEdgeRoundness();
 
                     let options = {
                         nodes: {
-                            shape: 'dot',
                             font: {
                                 size: 26,
                                 strokeWidth: 7

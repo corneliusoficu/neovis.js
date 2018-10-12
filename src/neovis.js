@@ -83,7 +83,8 @@ export default class NeoVis {
         let captionKey = this._config && this._config.labels && this._config.labels[label] && this._config.labels[label]['caption'],
             sizeKey = this._config && this._config.labels && this._config.labels[label] && this._config.labels[label]['size'],
             sizeCypher = this._config && this._config.labels && this._config.labels[label] && this._config.labels[label]['sizeCypher'],
-            communityKey = this._config && this._config.labels && this._config.labels[label] && this._config.labels[label]['community'];
+            communityKey = this._config && this._config.labels && this._config.labels[label] && this._config.labels[label]['community'],
+            shapeType = this._config && this._config.labels && this._config.labels[label] && this._config.labels[label]['shape'];
 
         node['id'] = n.identity.toInt();
 
@@ -152,6 +153,8 @@ export default class NeoVis {
                 node['group'] = 0;
             }
         }
+
+        node['shape'] = shapeType || "dot";
 
 
         // set all properties as tooltip
@@ -271,7 +274,6 @@ export default class NeoVis {
             .subscribe({
                 onNext: function (record) {
                     record.forEach(function (v, k, r) {
-
                         if (v.constructor.name === "Node") {
                             let node = self.buildNodeVisObject(v);
 
@@ -335,13 +337,11 @@ export default class NeoVis {
                 },
                 onCompleted: function () {
                     session.close();
-                    console.log("Retrieved data from neo4j");
 
                     self.computeEdgeRoundness();
 
                     let options = {
                         nodes: {
-                            shape: 'dot',
                             font: {
                                 size: 26,
                                 strokeWidth: 7
